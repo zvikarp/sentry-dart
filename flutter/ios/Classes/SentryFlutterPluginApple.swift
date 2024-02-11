@@ -422,34 +422,41 @@ public class SentryFlutterPluginApple: NSObject, FlutterPlugin {
     }
 
     private func endNativeFrames(result: @escaping FlutterResult) {
-      #if os(iOS) || targetEnvironment(macCatalyst)
-      guard PrivateSentrySDKOnly.isFramesTrackingRunning else {
-        print("Native frames tracking not running.")
+      do {
+        #if os(iOS) || targetEnvironment(macCatalyst)
+        guard PrivateSentrySDKOnly.isFramesTrackingRunning else {
+          print("Native frames tracking not running.")
+          result(nil)
+          return
+        }
+
+        let currentFrames = PrivateSentrySDKOnly.currentScreenFrames
+
+        let total = currentFrames.total - totalFrames
+        let frozen = currentFrames.frozen - frozenFrames
+        let slow = currentFrames.slow - slowFrames
+
+        if total <= 0 && frozen <= 0 && slow <= 0 {
+          result(nil)
+          return
+        }
+
+        let item: [String: Any] = [
+            "totalFrames": total,
+            "frozenFrames": frozen,
+            "slowFrames": slow
+        ]
+
+        result(item)
+        #else
+        result(nil)
+        #endif
+      }
+      catch {
+        print("Error while ending native frames")
         result(nil)
         return
       }
-
-      let currentFrames = PrivateSentrySDKOnly.currentScreenFrames
-
-      let total = currentFrames.total - totalFrames
-      let frozen = currentFrames.frozen - frozenFrames
-      let slow = currentFrames.slow - slowFrames
-
-      if total <= 0 && frozen <= 0 && slow <= 0 {
-        result(nil)
-        return
-      }
-
-      let item: [String: Any] = [
-          "totalFrames": total,
-          "frozenFrames": frozen,
-          "slowFrames": slow
-      ]
-
-      result(item)
-      #else
-      result(nil)
-      #endif
     }
 
     private func setContexts(key: String?, value: Any?, result: @escaping FlutterResult) {
